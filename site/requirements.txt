@@ -1,0 +1,7 @@
+jupyterlab
+jupyterlite-core
+jupyterlite-pyodide-kernel
+
+awkward
+uproot
+hist[plot]
