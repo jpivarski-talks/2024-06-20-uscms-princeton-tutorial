@@ -3,23 +3,17 @@ def send_answer(url, number):
     import requests
 
     code = IPython.get_ipython().history_manager.input_hist_raw[number]
-    print(code)
-    yes_or_no = input("\nSend this answer (Y/n)?").lstrip()
-    if len(yes_or_no) == 0 or yes_or_no.upper().startswith("Y"):
-        try:
-            response = requests.post(url, json={"code": code}, timeout=1).json()
-        except (requests.Timeout, requests.ConnectionError, requests.RequestException):
-            print(
-                "Wait until the teacher starts collecting answers or correct the IP address."
-            )
-            return
-        if response["ok"]:
-            print(response["message"])
-        else:
-            print("Something is wrong with the answer you sent:")
-            print(response["message"])
+
+    try:
+        response = requests.post(url, json={"code": code}, timeout=1).json()
+    except (requests.Timeout, requests.ConnectionError, requests.RequestException):
+        print("Wait until the teacher starts collecting answers or fix the IP address.")
+        return
+    if response["ok"]:
+        print(response["message"])
     else:
-        print("Did not send it.")
+        print("Something is wrong with the answer you sent:")
+        print(response["message"])
 
 
 def collect_answers(port=8000):
@@ -33,6 +27,10 @@ def collect_answers(port=8000):
     class AnswerHandler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *args, **kwargs):
             return  # override to disable logging
+
+        def end_headers(self):
+            self.send_header("Access-Control-Allow-Origin", "*")
+            return super().end_headers()
 
         def send_error(self, code, message=None, explain=None):
             self.send_response(code)
