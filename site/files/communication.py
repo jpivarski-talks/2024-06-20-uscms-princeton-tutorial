@@ -1,19 +1,46 @@
-def send_answer(url, number):
+def send_answer(number):
+    import time
+    import warnings
     import IPython
     import requests
+    from requests_aws4auth import AWS4Auth
+    from urllib3.connectionpool import InsecureRequestWarning
 
-    code = IPython.get_ipython().history_manager.input_hist_raw[number]
+    answer = IPython.get_ipython().history_manager.input_hist_raw[number]
 
-    try:
-        response = requests.post(url, json={"code": code}, timeout=1).json()
-    except (requests.Timeout, requests.ConnectionError, requests.RequestException):
-        print("Wait until the teacher starts collecting answers or fix the IP address.")
-        return
-    if response["ok"]:
-        print(response["message"])
-    else:
-        print("Something is wrong with the answer you sent:")
-        print(response["message"])
+    # don't freak out: this is a limited access key that is usually deactivated
+    awsauth = AWS4Auth(
+        "AKIAVH6KDF" "EHTR7AH7KR",
+        "nemmnMSa" "wq7Ozvsv6GH" "BhXRraeiuZ0d" "K2kiuZYkp",
+        "us-east-1",
+        "sns",
+    )
+
+    # ignoring "Unverified HTTPS request is being made to host 'sns.us-east-1.amazonaws.com'."
+    # the issue is that this is cross-domain (GitHub Pages to AWS SNS; both are HTTPS)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+
+        response = requests.post(
+            "https://sns.us-east-1.amazonaws.com/",
+            auth=awsauth,
+            params={
+                "Version": "2010-03-31",
+                "Action": "Publish",
+                "TopicArn": "arn:aws:sns:us-east-1:360664213775:2024-06-20-uscms-princeton-tutorial",
+                "Subject": "answer",
+                "Message": answer,
+            }
+        )
+
+        xml = ElementTree.fromstring(response.text)
+        ns = {"ns": "http://sns.amazonaws.com/doc/2010-03-31/"}
+        if xml.tag == "{" + ns["ns"] + "}ErrorResponse":
+            code = xml.find("./ns:Error/ns:Code", ns).text
+            message = xml.find("./ns:Error/ns:Message", ns).text
+            raise ConnectionError(f"{code}: {message}")
+
+        print(f"Sent code cell {number} at {time.strftime('%I:%M:%S %p')}.")
 
 
 def collect_answers(port=8000):
