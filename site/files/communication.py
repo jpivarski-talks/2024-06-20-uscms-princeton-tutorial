@@ -3,6 +3,7 @@ def send_answer(number):
     import warnings
     import IPython
     import requests
+    from xml.etree import ElementTree
     from requests_aws4auth import AWS4Auth
     from urllib3.connectionpool import InsecureRequestWarning
 
@@ -46,79 +47,47 @@ def send_answer(number):
 def collect_answers(port=8000):
     import http.server
     import json
-    import socket
-
     import pygments
     import IPython.display
 
     class AnswerHandler(http.server.BaseHTTPRequestHandler):
         def log_message(self, *args, **kwargs):
-            return  # override to disable logging
-
-        def end_headers(self):
-            self.send_header("Access-Control-Allow-Origin", "*")
-            return super().end_headers()
-
-        def send_error(self, code, message=None, explain=None):
-            self.send_response(code)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(
-                json.dumps({"ok": False, "message": message}).encode("utf-8")
-            )
+            return   # override to disable logging
 
         def do_POST(self):
-            raw_data = self.rfile.read(int(self.headers["Content-Length"])).decode(
-                "utf-8"
-            )
-            try:
-                data = json.loads(raw_data)
-            except json.JSONDecodeError:
-                self.send_error(400, f"must be JSON: {raw_data}")
-                return
-            if not isinstance(data.get("code"), str):
-                self.send_error(400, f"'code' must be a string: {raw_data}")
-                return
+            raw_data_length = int(self.headers["Content-Length"])
+            raw_data = self.rfile.read(raw_data_length).decode("utf-8")
+            data = json.loads(raw_data)
 
-            try:
-                highlighted_code = pygments.highlight(
-                    data["code"],
-                    pygments.lexers.PythonLexer(),
-                    pygments.formatters.HtmlFormatter(),
-                )
+            if data["Type"] == "SubscriptionConfirmation":
+                print(data["Message"])
+                print(data["SubscribeURL"])
+
+            elif data["Type"] == "Notification":
+                try:
+                    answer = pygments.highlight(
+                        data["Message"],
+                        pygments.lexers.PythonLexer(),
+                        pygments.formatters.HtmlFormatter(),
+                    )
+                except Exception as err:
+                    answer = f'<p style="font-family: monospace;">{data["Message"]}</p>'
 
                 IPython.display.display(
                     IPython.display.HTML(
-                        f'<details><summary style="font-weight: bold;">Answer {AnswerHandler.counter}</summary>{highlighted_code}</details>'
+                        f'<details><summary style="font-weight: bold;">Answer</summary>{answer}</details>'
                     )
                 )
-            except Exception as err:
-                self.send_error(400, f"{type(err).__name__}: {str(err)}")
-                return
 
             self.send_response(200)
-            self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(
-                json.dumps(
-                    {
-                        "ok": True,
-                        "message": f"Received as answer number {AnswerHandler.counter}.",
-                    }
-                ).encode("utf-8")
-            )
-            AnswerHandler.counter += 1
 
     class AnswerServer(http.server.HTTPServer):
         allow_reuse_address = True
 
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        s.connect(("10.254.254.254", 80))
-        base = s.getsockname()[0]
-
-    with AnswerServer((base, port), AnswerHandler) as httpd:
+    with AnswerServer(("0.0.0.0", port), AnswerHandler) as httpd:
         highlighted_code = pygments.highlight(
-            f'answer_url = "http://{base}:{port}"\n\nsend_answer(answer_url, <OUTPUT NUMBER>)',
+            f"send_answer(<OUTPUT NUMBER>)",
             pygments.lexers.PythonLexer(),
             pygments.formatters.HtmlFormatter(),
         )
@@ -127,12 +96,13 @@ def collect_answers(port=8000):
                 f'<div style="font-size: 1.5em; margin: 1em;">{highlighted_code}</div>'
             )
         )
-        AnswerHandler.counter = 1
+
         try:
             httpd.serve_forever()
+
         except KeyboardInterrupt:
             IPython.display.display(
                 IPython.display.HTML(
-                    f'<p style="font-size: 1.5em; margin: 1em;">Stopped collecting answers.</p>'
+                    f'<p style="font-size: 1.5em; margin: 1em;">(no longer collecting answers)</p>'
                 )
             )
