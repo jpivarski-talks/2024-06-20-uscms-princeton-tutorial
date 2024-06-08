@@ -1,4 +1,4 @@
-# Tutorial on columnar analysis at US-CMS on June 20, 2024
+# Tutorial on columnar analysis at US-CMS on June 20, 2024 at Princeton
 
 Click on this link:
 

@@ -1,12 +1,15 @@
-jupyterlab
 jupyterlite-core
+jupyterlab
+notebook
 jupyterlite-pyodide-kernel
+jupyterlab-deck
 
 requests
 requests-aws4auth
 numpy
 matplotlib
 awkward
-hist[plot]
+hist
+mplhep
 uproot
 vector
