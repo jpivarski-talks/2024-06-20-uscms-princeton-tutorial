@@ -2,14 +2,3 @@ jupyterlite-core
 jupyterlab
 notebook
 jupyterlite-pyodide-kernel
-jupyterlab-deck
-
-requests
-requests-aws4auth
-numpy
-matplotlib
-awkward
-hist
-mplhep
-uproot
-vector
