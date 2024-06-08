@@ -2,6 +2,11 @@ jupyterlab
 jupyterlite-core
 jupyterlite-pyodide-kernel
 
+requests
+requests-aws4auth
+numpy
+matplotlib
 awkward
-uproot
 hist[plot]
+uproot
+vector
